@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Button from '@mui/material/Button';
@@ -12,6 +12,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Paper from '@mui/material/Paper';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
+import Collapse from '@mui/material/Collapse';
 
 // Icons
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
@@ -22,6 +23,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import ViewStreamIcon from '@mui/icons-material/ViewStream';
 import DataObjectIcon from '@mui/icons-material/DataObject';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 // JSON Viewer
 import { JsonView, darkStyles } from 'react-json-view-lite';
@@ -29,6 +32,25 @@ import 'react-json-view-lite/dist/index.css';
 
 // Key Value View component (recursive)
 const KeyValueView = ({ data, level = 0 }) => {
+  const [expandedKeys, setExpandedKeys] = useState({});
+  
+  // Toggle expansion of a specific key
+  const toggleExpand = (key) => {
+    setExpandedKeys(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+  
+  // Check if a key is expanded
+  const isExpanded = (key) => {
+    // Top-level items are expanded by default
+    if (level === 0 && expandedKeys[key] === undefined) {
+      return true;
+    }
+    return !!expandedKeys[key];
+  };
+  
   // Handle different data types
   if (data === null) {
     return <Typography color="text.secondary">null</Typography>;
@@ -45,32 +67,77 @@ const KeyValueView = ({ data, level = 0 }) => {
   // For arrays and objects
   return (
     <Box sx={{ ml: level > 0 ? 2 : 0 }}>
-      {Object.entries(data).map(([key, value]) => (
-        <Box key={key} sx={{ mb: 1 }}>
-          <Typography 
-            component="span" 
-            sx={{ 
-              fontWeight: 'bold',
-              color: 'primary.main'
-            }}
-          >
-            {key}:
-          </Typography>
-          
-          {typeof value === 'object' && value !== null ? (
-            <Box sx={{ mt: 0.5 }}>
-              <KeyValueView data={value} level={level + 1} />
-            </Box>
-          ) : (
-            <Typography 
-              component="span" 
-              sx={{ ml: 1 }}
+      {Object.entries(data).map(([key, value]) => {
+        const isObject = typeof value === 'object' && value !== null;
+        const expanded = isExpanded(key);
+        
+        return (
+          <Box key={key} sx={{ mb: 1 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                cursor: isObject ? 'pointer' : 'default',
+                py: 0.5,
+                px: 0.5,
+                borderRadius: 1,
+                '&:hover': isObject ? {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                } : {}
+              }}
+              onClick={() => isObject && toggleExpand(key)}
             >
-              {value === null ? 'null' : String(value)}
-            </Typography>
-          )}
-        </Box>
-      ))}
+              {isObject && (
+                <Box sx={{ mr: 0.5, display: 'flex', alignItems: 'center', color: 'secondary.main' }}>
+                  {expanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />}
+                </Box>
+              )}
+              
+              <Typography 
+                component="span" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  color: 'primary.main'
+                }}
+              >
+                {key}:
+              </Typography>
+              
+              {!isObject && (
+                <Typography 
+                  component="span" 
+                  sx={{ ml: 1 }}
+                >
+                  {value === null ? 'null' : String(value)}
+                </Typography>
+              )}
+              
+              {isObject && !expanded && (
+                <Typography 
+                  component="span" 
+                  sx={{ 
+                    ml: 1,
+                    color: 'text.secondary', 
+                    fontStyle: 'italic'
+                  }}
+                >
+                  {Array.isArray(value) 
+                    ? `Array(${value.length})` 
+                    : `Object(${Object.keys(value).length} properties)`}
+                </Typography>
+              )}
+            </Box>
+            
+            {isObject && (
+              <Collapse in={expanded}>
+                <Box sx={{ mt: 0.5, borderLeft: '1px dotted rgba(255, 255, 255, 0.1)', pl: 1 }}>
+                  <KeyValueView data={value} level={level + 1} />
+                </Box>
+              </Collapse>
+            )}
+          </Box>
+        );
+      })}
     </Box>
   );
 };
