@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    container_name: pipeline-tester-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - ELASTICSEARCH_TIMEOUT=30
+    restart: unless-stopped
+    networks:
+      - pipeline-tester-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pipeline-tester-frontend
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - pipeline-tester-network
+
+networks:
+  pipeline-tester-network:
+    driver: bridge 

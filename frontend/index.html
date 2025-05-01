@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elasticsearch Pipeline Tester</title>
+  <!-- Include Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <!-- Custom CSS -->
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .app-header {
+      background-color: #1E1E1E;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card {
+      background-color: #1E1E1E;
+      border: 1px solid #333;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      background-color: #2c2c2c;
+      padding: 10px 15px;
+      border-bottom: 1px solid #333;
+      font-weight: 500;
+    }
+    .form-control, .form-select {
+      background-color: #2c2c2c;
+      border: 1px solid #444;
+      color: #e0e0e0;
+    }
+    .form-control:focus, .form-select:focus {
+      background-color: #383838;
+      color: #ffffff;
+      border-color: #00ceab;
+      box-shadow: none;
+    }
+    .btn-primary {
+      background-color: #00ceab;
+      border-color: #00ceab;
+    }
+    .btn-primary:hover {
+      background-color: #00967d;
+      border-color: #00967d;
+    }
+    .btn-outline-secondary {
+      border-color: #5a5a5a;
+      color: #e0e0e0;
+    }
+    .btn-outline-secondary:hover {
+      background-color: #333;
+      color: #ffffff;
+    }
+    .json-display {
+      background-color: #2c2c2c;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+    .nav-tabs .nav-link {
+      color: #e0e0e0;
+      border: none;
+    }
+    .nav-tabs .nav-link.active {
+      background-color: #2c2c2c;
+      color: #ffffff;
+      border: none;
+      border-bottom: 2px solid #00ceab;
+    }
+    .error-text {
+      color: #cf6679;
+    }
+    .pagination-info {
+      margin-bottom: 10px;
+    }
+    #help-modal .modal-content {
+      background-color: #2c2c2c;
+      color: #e0e0e0;
+      border: 1px solid #444;
+    }
+    #help-modal .modal-header, #help-modal .modal-footer {
+      border-color: #444;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="app-header">
+    <h1>Elasticsearch Ingest Pipeline Tester</h1>
+    <div>
+      <button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#help-modal">
+        <i class="fas fa-question-circle"></i> Help
+      </button>
+      <button id="clear-btn" class="btn btn-outline-secondary">
+        <i class="fas fa-trash"></i> Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Connection Card -->
+  <div class="card">
+    <div class="card-header">1. Elasticsearch Connection</div>
+    <div class="card-body">
+      <form id="connection-form">
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label for="es-url" class="form-label">Elasticsearch URL</label>
+            <input type="text" class="form-control" id="es-url" placeholder="https://your-cluster:9200" required>
+            <div class="form-text">The URL of your Elasticsearch cluster</div>
+          </div>
+          <div class="col-md-3">
+            <label for="es-username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="es-username" placeholder="Username" required>
+            <div class="form-text">Your Elasticsearch username</div>
+          </div>
+          <div class="col-md-3">
+            <label for="es-password" class="form-label">Password/API Key</label>
+            <input type="password" class="form-control" id="es-password" placeholder="Password or API Key" required>
+            <div class="form-text">Your Elasticsearch password or API key</div>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100" id="test-credentials-btn">Test Credentials</button>
+          </div>
+        </div>
+        <div id="credentials-feedback"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Pipeline Selection Card -->
+  <div class="card" id="pipeline-section" style="display: none;">
+    <div class="card-header">2. Pipeline Selection</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label for="pipeline-select" class="form-label">Select Pipeline</label>
+        <select class="form-select" id="pipeline-select">
+          <option value="" selected disabled>Choose a pipeline</option>
+        </select>
+        <div class="form-text">Select an ingest pipeline to test</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Input Card -->
+  <div class="card" id="log-input-section" style="display: none;">
+    <div class="card-header">3. Log Input</div>
+    <div class="card-body">
+      <ul class="nav nav-tabs" id="logInputTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-content" type="button" role="tab">Upload File</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste-content" type="button" role="tab">Paste Logs</button>
+        </li>
+      </ul>
+      <div class="tab-content mt-3">
+        <div class="tab-pane fade show active" id="upload-content" role="tabpanel">
+          <div class="mb-3">
+            <label for="log-file" class="form-label">Choose a log file</label>
+            <input class="form-control" type="file" id="log-file" accept=".txt,.json,.csv">
+            <div class="form-text">Upload a log file (txt, JSON, or CSV)</div>
+          </div>
+          <div id="file-info"></div>
+        </div>
+        <div class="tab-pane fade" id="paste-content" role="tabpanel">
+          <div class="mb-3">
+            <label for="log-content" class="form-label">Log Content</label>
+            <textarea class="form-control" id="log-content" rows="6" placeholder="Paste one log entry per line (max 10,000 lines)"></textarea>
+          </div>
+        </div>
+      </div>
+      <div id="log-feedback" class="mt-3"></div>
+      <div class="text-end mt-3">
+        <button class="btn btn-primary" id="process-btn" disabled>
+          <i class="fas fa-play"></i> Process
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Card -->
+  <div class="card" id="results-section" style="display: none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>4. Results</span>
+      <div>
+        <div class="btn-group me-2" role="group">
+          <button type="button" class="btn btn-outline-secondary active" id="json-view-btn">JSON View</button>
+          <button type="button" class="btn btn-outline-secondary" id="kv-view-btn">Key-Value View</button>
+        </div>
+        <button class="btn btn-outline-secondary" id="download-btn">
+          <i class="fas fa-download"></i>
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="pagination-info">Line <span id="current-line">1</span> of <span id="total-lines">0</span></div>
+        <div class="btn-group">
+          <button class="btn btn-outline-secondary" id="skip-back-btn" disabled>
+            <i class="fas fa-angle-double-left"></i> -10
+          </button>
+          <button class="btn btn-outline-secondary" id="prev-btn" disabled>
+            <i class="fas fa-angle-left"></i> Previous
+          </button>
+          <button class="btn btn-outline-secondary" id="next-btn" disabled>
+            Next <i class="fas fa-angle-right"></i>
+          </button>
+          <button class="btn btn-outline-secondary" id="skip-forward-btn" disabled>
+            +10 <i class="fas fa-angle-double-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Original Log</span>
+              <button class="btn btn-sm btn-outline-secondary" id="copy-original-btn">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="json-display" id="original-log"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Transformed Output</span>
+              <button class="btn btn-sm btn-outline-secondary" id="copy-transformed-btn">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="transformed-content"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="help-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Help & Instructions</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-primary">
+          <h6>About This Application</h6>
+          <p>This application allows you to test Elasticsearch ingest pipelines by sending log data through a selected pipeline and viewing the transformed results.</p>
+        </div>
+        <h6>How to Use This Application</h6>
+        <ol class="list-group list-group-numbered mb-3">
+          <li class="list-group-item bg-transparent border-0">
+            <strong>Enter your Elasticsearch cluster URL, username, and password/API key</strong>
+            <div class="text-muted">Click 'Test Credentials' to verify the connection</div>
+          </li>
+          <li class="list-group-item bg-transparent border-0">
+            <strong>Select an ingest pipeline from the dropdown</strong>
+            <div class="text-muted">The dropdown is populated with all available pipelines from your cluster</div>
+          </li>
+          <li class="list-group-item bg-transparent border-0">
+            <strong>Upload a log file or paste log lines</strong>
+            <div class="text-muted">Each line will be processed as a separate document</div>
+          </li>
+          <li class="list-group-item bg-transparent border-0">
+            <strong>Click 'Process' to run the logs through the pipeline</strong>
+            <div class="text-muted">Large files are processed in batches of 100 lines</div>
+          </li>
+          <li class="list-group-item bg-transparent border-0">
+            <strong>View the results side-by-side with the original logs</strong>
+            <div class="text-muted">Navigate through results with the navigation buttons</div>
+          </li>
+          <li class="list-group-item bg-transparent border-0">
+            <strong>Toggle between JSON and Key-Value views</strong>
+            <div class="text-muted">Copy individual results or export all results as needed</div>
+          </li>
+        </ol>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Include JavaScript libraries -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<!-- App JavaScript -->
+<script>
+  // Global app state
+  const appState = {
+    credentials: {
+      url: '',
+      username: '',
+      password: ''
+    },
+    connected: false,
+    pipelines: [],
+    selectedPipeline: '',
+    logInput: {
+      type: 'file', // 'file' or 'paste'
+      content: [],
+      fileDetails: null
+    },
+    results: [],
+    currentIndex: 0,
+    viewMode: 'json' // 'json' or 'kv'
+  };
+
+  // API endpoints
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  // API functions
+  async function testCredentials(credentials) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/test-credentials`, credentials);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to test credentials');
+    }
+  }
+
+  async function fetchPipelines(credentials) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/pipelines`, credentials);
+      return response.data.pipelines;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch pipelines');
+    }
+  }
+
+  async function uploadFile(file) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await axios.post(`${API_BASE_URL}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to upload file');
+    }
+  }
+
+  async function processLogs(params) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/simulate`, params);
+      return response.data.results;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to process logs');
+    }
+  }
+
+  // Utility functions
+  function showElement(id) {
+    document.getElementById(id).style.display = 'block';
+  }
+
+  function hideElement(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
+  function showSuccess(elementId, message) {
+    document.getElementById(elementId).innerHTML = `
+      <div class="alert alert-success">${message}</div>
+    `;
+  }
+
+  function showError(elementId, message) {
+    document.getElementById(elementId).innerHTML = `
+      <div class="alert alert-danger">${message}</div>
+    `;
+  }
+
+  function clearFeedback(elementId) {
+    document.getElementById(elementId).innerHTML = '';
+  }
+
+  function renderJson(container, data, indent = 2) {
+    const jsonString = JSON.stringify(data, null, indent);
+    container.innerHTML = `<pre>${escapeHtml(jsonString)}</pre>`;
+  }
+
+  function renderKeyValuePairs(container, data, level = 0) {
+    if (data === null || data === undefined) {
+      container.innerHTML = '<span class="text-muted">null</span>';
+      return;
+    }
+
+    if (typeof data !== 'object') {
+      container.innerHTML = escapeHtml(String(data));
+      return;
+    }
+
+    const content = document.createElement('div');
+    content.style.marginLeft = level > 0 ? '20px' : '0';
+
+    for (const [key, value] of Object.entries(data)) {
+      const row = document.createElement('div');
+      row.className = 'mb-2';
+
+      const keySpan = document.createElement('span');
+      keySpan.className = 'fw-bold text-primary';
+      keySpan.textContent = `${key}: `;
+      row.appendChild(keySpan);
+
+      if (typeof value === 'object' && value !== null) {
+        const valueContainer = document.createElement('div');
+        valueContainer.className = 'mt-1';
+        row.appendChild(valueContainer);
+        renderKeyValuePairs(valueContainer, value, level + 1);
+      } else {
+        const valueSpan = document.createElement('span');
+        valueSpan.textContent = value === null ? 'null' : String(value);
+        row.appendChild(valueSpan);
+      }
+
+      content.appendChild(row);
+    }
+
+    container.innerHTML = '';
+    container.appendChild(content);
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(typeof text === 'object' ? JSON.stringify(text, null, 2) : text);
+  }
+
+  // Event handlers
+  document.getElementById('connection-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const url = document.getElementById('es-url').value;
+    const username = document.getElementById('es-username').value;
+    const password = document.getElementById('es-password').value;
+    
+    if (!url || !username || !password) {
+      showError('credentials-feedback', 'Please fill in all credential fields');
+      return;
+    }
+    
+    const credentials = { url, username, password };
+    const btnEl = document.getElementById('test-credentials-btn');
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Testing...';
+    
+    clearFeedback('credentials-feedback');
+    
+    try {
+      // Test credentials
+      const result = await testCredentials(credentials);
+      
+      if (result.success) {
+        showSuccess('credentials-feedback', result.message);
+        
+        // Store credentials
+        appState.credentials = credentials;
+        appState.connected = true;
+        
+        // Fetch pipelines
+        const pipelines = await fetchPipelines(credentials);
+        appState.pipelines = pipelines;
+        
+        // Update UI
+        updatePipelineSelect(pipelines);
+        showElement('pipeline-section');
+      } else {
+        showError('credentials-feedback', result.message);
+      }
+    } catch (error) {
+      showError('credentials-feedback', error.message);
+    } finally {
+      btnEl.disabled = false;
+      btnEl.innerHTML = 'Test Credentials';
+    }
+  });
+
+  function updatePipelineSelect(pipelines) {
+    const selectEl = document.getElementById('pipeline-select');
+    selectEl.innerHTML = '<option value="" selected disabled>Choose a pipeline</option>';
+    
+    pipelines.forEach(pipeline => {
+      const option = document.createElement('option');
+      option.value = pipeline;
+      option.textContent = pipeline;
+      selectEl.appendChild(option);
+    });
+  }
+
+  document.getElementById('pipeline-select').addEventListener('change', function(e) {
+    appState.selectedPipeline = e.target.value;
+    
+    if (appState.selectedPipeline) {
+      showElement('log-input-section');
+      document.getElementById('process-btn').disabled = false;
+    }
+  });
+
+  // Handle file upload
+  document.getElementById('log-file').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    const validTypes = ['text/plain', 'application/json', 'text/csv'];
+    const isValidType = validTypes.includes(file.type) || 
+                       file.name.endsWith('.txt') || 
+                       file.name.endsWith('.json') || 
+                       file.name.endsWith('.csv');
+    
+    if (!isValidType) {
+      showError('log-feedback', 'Invalid file type. Please upload a TXT, JSON, or CSV file.');
+      return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showError('log-feedback', 'File too large. Maximum size is 10MB.');
+      return;
+    }
+    
+    clearFeedback('log-feedback');
+    
+    try {
+      const uploadResult = await uploadFile(file);
+      
+      if (uploadResult.success) {
+        // Store log lines
+        appState.logInput.type = 'file';
+        appState.logInput.content = uploadResult.log_lines;
+        appState.logInput.fileDetails = {
+          name: file.name,
+          size: (file.size / 1024).toFixed(2) + ' KB',
+          lines: uploadResult.line_count
+        };
+        
+        // Update UI
+        document.getElementById('file-info').innerHTML = `
+          <div class="mt-2">
+            <p class="mb-1"><strong>File:</strong> ${file.name}</p>
+            <p class="mb-0 text-muted">Size: ${(file.size / 1024).toFixed(2)} KB | Lines: ${uploadResult.line_count}</p>
+          </div>
+        `;
+      } else {
+        showError('log-feedback', uploadResult.message);
+      }
+    } catch (error) {
+      showError('log-feedback', error.message);
+    }
+  });
+
+  // Handle paste input
+  document.getElementById('log-content').addEventListener('input', function(e) {
+    const text = e.target.value;
+    
+    if (text) {
+      // Split text into lines
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      // Validate line count
+      if (lines.length > 10000) {
+        showError('log-feedback', 'Too many lines. Maximum is 10,000 lines.');
+        return;
+      }
+      
+      // Store log lines
+      appState.logInput.type = 'paste';
+      appState.logInput.content = text;
+    }
+  });
+
+  // Process logs
+  document.getElementById('process-btn').addEventListener('click', async function() {
+    if (!appState.selectedPipeline) {
+      showError('log-feedback', 'Please select a pipeline first');
+      return;
+    }
+    
+    if (appState.logInput.type === 'file' && !appState.logInput.fileDetails) {
+      showError('log-feedback', 'Please upload a file first');
+      return;
+    }
+    
+    if (appState.logInput.type === 'paste' && !document.getElementById('log-content').value) {
+      showError('log-feedback', 'Please paste some logs first');
+      return;
+    }
+    
+    // Prepare request
+    const params = {
+      ...appState.credentials,
+      pipeline_id: appState.selectedPipeline,
+      logs: appState.logInput.content,
+      input_type: appState.logInput.type
+    };
+    
+    const btnEl = document.getElementById('process-btn');
+    btnEl.disabled = true;
+    btnEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    
+    clearFeedback('log-feedback');
+    
+    try {
+      // Process logs
+      const results = await processLogs(params);
+      
+      // Store results
+      appState.results = results;
+      appState.currentIndex = 0;
+      
+      // Update UI
+      updateResultView();
+      showElement('results-section');
+      updateNavigationButtons();
+    } catch (error) {
+      showError('log-feedback', error.message);
+    } finally {
+      btnEl.disabled = false;
+      btnEl.innerHTML = '<i class="fas fa-play"></i> Process';
+    }
+  });
+
+  // Navigation buttons
+  document.getElementById('prev-btn').addEventListener('click', function() {
+    if (appState.currentIndex > 0) {
+      appState.currentIndex--;
+      updateResultView();
+      updateNavigationButtons();
+    }
+  });
+
+  document.getElementById('next-btn').addEventListener('click', function() {
+    if (appState.currentIndex < appState.results.length - 1) {
+      appState.currentIndex++;
+      updateResultView();
+      updateNavigationButtons();
+    }
+  });
+
+  document.getElementById('skip-back-btn').addEventListener('click', function() {
+    appState.currentIndex = Math.max(0, appState.currentIndex - 10);
+    updateResultView();
+    updateNavigationButtons();
+  });
+
+  document.getElementById('skip-forward-btn').addEventListener('click', function() {
+    appState.currentIndex = Math.min(appState.results.length - 1, appState.currentIndex + 10);
+    updateResultView();
+    updateNavigationButtons();
+  });
+
+  // View mode toggle
+  document.getElementById('json-view-btn').addEventListener('click', function() {
+    appState.viewMode = 'json';
+    this.classList.add('active');
+    document.getElementById('kv-view-btn').classList.remove('active');
+    updateResultView();
+  });
+
+  document.getElementById('kv-view-btn').addEventListener('click', function() {
+    appState.viewMode = 'kv';
+    this.classList.add('active');
+    document.getElementById('json-view-btn').classList.remove('active');
+    updateResultView();
+  });
+
+  // Copy buttons
+  document.getElementById('copy-original-btn').addEventListener('click', function() {
+    if (appState.results.length > 0) {
+      copyToClipboard(appState.results[appState.currentIndex].original_log);
+      this.innerHTML = '<i class="fas fa-check"></i>';
+      setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-copy"></i>';
+      }, 1500);
+    }
+  });
+
+  document.getElementById('copy-transformed-btn').addEventListener('click', function() {
+    if (appState.results.length > 0) {
+      const result = appState.results[appState.currentIndex];
+      copyToClipboard(result.error ? result.error_message : result.processed_doc);
+      this.innerHTML = '<i class="fas fa-check"></i>';
+      setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-copy"></i>';
+      }, 1500);
+    }
+  });
+
+  // Download results
+  document.getElementById('download-btn').addEventListener('click', function() {
+    if (appState.results.length > 0) {
+      const transformedResults = appState.results.map(r => r.processed_doc || r.error_message);
+      const blob = new Blob([JSON.stringify(transformedResults, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'transformed_results.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 0);
+    }
+  });
+
+  // Clear button
+  document.getElementById('clear-btn').addEventListener('click', function() {
+    // Reset app state
+    appState.credentials = { url: '', username: '', password: '' };
+    appState.connected = false;
+    appState.pipelines = [];
+    appState.selectedPipeline = '';
+    appState.logInput = { type: 'file', content: [], fileDetails: null };
+    appState.results = [];
+    appState.currentIndex = 0;
+    
+    // Reset UI
+    document.getElementById('connection-form').reset();
+    document.getElementById('pipeline-select').innerHTML = '<option value="" selected disabled>Choose a pipeline</option>';
+    document.getElementById('log-file').value = '';
+    document.getElementById('log-content').value = '';
+    document.getElementById('file-info').innerHTML = '';
+    clearFeedback('credentials-feedback');
+    clearFeedback('log-feedback');
+    hideElement('pipeline-section');
+    hideElement('log-input-section');
+    hideElement('results-section');
+    
+    // Switch back to upload tab
+    document.getElementById('upload-tab').click();
+  });
+
+  function updateResultView() {
+    if (appState.results.length === 0) return;
+    
+    const result = appState.results[appState.currentIndex];
+    
+    // Update pagination info
+    document.getElementById('current-line').textContent = appState.currentIndex + 1;
+    document.getElementById('total-lines').textContent = appState.results.length;
+    
+    // Update original log
+    document.getElementById('original-log').textContent = result.original_log || 'No data';
+    
+    // Update transformed output
+    const transformedContentEl = document.getElementById('transformed-content');
+    
+    if (result.error) {
+      transformedContentEl.innerHTML = `
+        <div class="alert alert-danger">${result.error_message || 'Processing error'}</div>
+      `;
+    } else {
+      if (appState.viewMode === 'json') {
+        renderJson(transformedContentEl, result.processed_doc || {});
+      } else {
+        renderKeyValuePairs(transformedContentEl, result.processed_doc || {});
+      }
+    }
+  }
+
+  function updateNavigationButtons() {
+    document.getElementById('prev-btn').disabled = appState.currentIndex === 0;
+    document.getElementById('skip-back-btn').disabled = appState.currentIndex === 0;
+    document.getElementById('next-btn').disabled = appState.currentIndex === appState.results.length - 1;
+    document.getElementById('skip-forward-btn').disabled = appState.currentIndex === appState.results.length - 1;
+  }
+</script>
+</body>
+</html> 
