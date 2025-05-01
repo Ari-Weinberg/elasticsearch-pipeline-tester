@@ -26,9 +26,184 @@ import DataObjectIcon from '@mui/icons-material/DataObject';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
-// JSON Viewer
-import { JsonView, darkStyles } from 'react-json-view-lite';
-import 'react-json-view-lite/dist/index.css';
+// Custom JSON Viewer component
+const JsonTreeView = ({ data, level = 0 }) => {
+  const [expandedKeys, setExpandedKeys] = useState({});
+  
+  // Toggle expansion of a specific key path
+  const toggleExpand = (keyPath) => {
+    setExpandedKeys(prev => ({
+      ...prev,
+      [keyPath]: !prev[keyPath]
+    }));
+  };
+  
+  // Check if a key path is expanded
+  const isExpanded = (keyPath) => {
+    // Top-level items are expanded by default
+    if (level === 0 && expandedKeys[keyPath] === undefined) {
+      return true;
+    }
+    return !!expandedKeys[keyPath];
+  };
+  
+  // Format different data types for display
+  const formatValue = (value) => {
+    if (value === null) {
+      return <Typography component="span" sx={{ color: "#888888", fontStyle: "italic" }}>null</Typography>;
+    }
+    if (value === undefined) {
+      return <Typography component="span" sx={{ color: "#888888", fontStyle: "italic" }}>undefined</Typography>;
+    }
+    if (typeof value === 'string') {
+      return <Typography component="span" sx={{ color: "#e3e3e3" }}>"{value}"</Typography>;
+    }
+    if (typeof value === 'number') {
+      return <Typography component="span" sx={{ color: "#b4aefe" }}>{value}</Typography>;
+    }
+    if (typeof value === 'boolean') {
+      return <Typography component="span" sx={{ color: "#ff8c69" }}>{value.toString()}</Typography>;
+    }
+    return <Typography component="span">{String(value)}</Typography>;
+  };
+  
+  // Handle null or non-object data
+  if (data === null || typeof data !== 'object') {
+    return formatValue(data);
+  }
+  
+  // For arrays and objects
+  const isArray = Array.isArray(data);
+  const entries = isArray 
+    ? data.map((val, idx) => [idx.toString(), val]) 
+    : Object.entries(data);
+  
+  return (
+    <Box sx={{ ml: level > 0 ? 1.5 : 0 }}>
+      <Box sx={{ display: 'flex', ml: -0.5 }}>
+        <Typography sx={{ color: '#888888' }}>
+          {isArray ? '[' : '{'}
+        </Typography>
+      </Box>
+      
+      {entries.length > 0 && (
+        <Box sx={{ 
+          ml: 1.5, 
+          borderLeft: '1px dotted rgba(255, 255, 255, 0.2)', 
+          pl: 1 
+        }}>
+          {entries.map(([key, value], idx) => {
+            const isNested = value !== null && typeof value === 'object';
+            const keyPath = `${level}_${key}`;
+            const expanded = isExpanded(keyPath);
+            
+            return (
+              <Box key={keyPath} sx={{ mb: 0.75 }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start',
+                  cursor: isNested ? 'pointer' : 'default',
+                  '&:hover': isNested ? {
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  } : {}
+                }}>
+                  {isNested && (
+                    <IconButton 
+                      size="small" 
+                      onClick={() => toggleExpand(keyPath)}
+                      sx={{ 
+                        p: 0, 
+                        mr: 0.5, 
+                        color: '#2FBF71',
+                        '&:hover': {
+                          backgroundColor: 'transparent',
+                        }
+                      }}
+                    >
+                      {expanded ? 
+                        <ExpandMoreIcon fontSize="small" /> : 
+                        <ChevronRightIcon fontSize="small" />
+                      }
+                    </IconButton>
+                  )}
+                  {!isNested && <Box sx={{ width: 24 }} />}
+                  
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap',
+                      alignItems: 'flex-start'
+                    }}
+                    onClick={() => isNested && toggleExpand(keyPath)}
+                  >
+                    <Typography 
+                      component="span" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: '#4ECDC4', 
+                        mr: 0.5
+                      }}
+                    >
+                      {isArray ? '' : `"${key}"`}:
+                    </Typography>
+                    
+                    {isNested ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography sx={{ color: '#888888', mr: 0.5 }}>
+                          {Array.isArray(value) ? '[' : '{'}
+                        </Typography>
+                        
+                        {!expanded && (
+                          <Typography 
+                            sx={{ 
+                              color: 'rgba(255, 255, 255, 0.5)', 
+                              fontStyle: 'italic',
+                              fontSize: '0.85rem',
+                            }}
+                          >
+                            {Array.isArray(value) 
+                              ? `${value.length} items` 
+                              : `${Object.keys(value).length} keys`}
+                          </Typography>
+                        )}
+                        
+                        {!expanded && (
+                          <Typography sx={{ color: '#888888', ml: 0.5 }}>
+                            {Array.isArray(value) ? ']' : '}'}
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      formatValue(value)
+                    )}
+                  </Box>
+                </Box>
+                
+                {isNested && expanded && (
+                  <Box sx={{ mb: 0.5 }}>
+                    <Collapse in={expanded}>
+                      <JsonTreeView data={value} level={level + 1} />
+                    </Collapse>
+                  </Box>
+                )}
+                
+                {idx < entries.length - 1 && (
+                  <Typography sx={{ color: '#888888' }}>,</Typography>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+      )}
+      
+      <Box sx={{ display: 'flex', ml: level > 0 ? 0 : -0.5 }}>
+        <Typography sx={{ color: '#888888' }}>
+          {isArray ? ']' : '}'}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
 
 // Key Value View component (recursive)
 const KeyValueView = ({ data, level = 0 }) => {
@@ -398,10 +573,9 @@ function ResultsViewer({
               </Tooltip>
               
               {viewMode === 'json' ? (
-                <JsonView 
-                  data={result.processed_doc || {}} 
-                  style={darkStyles}
-                />
+                <Box sx={{ p: 1 }}>
+                  <JsonTreeView data={result.processed_doc || {}} />
+                </Box>
               ) : (
                 <KeyValueView data={result.processed_doc || {}} />
               )}
