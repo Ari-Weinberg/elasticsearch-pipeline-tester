@@ -39,8 +39,8 @@ function ConnectionForm({
     e.preventDefault();
     
     // Validate inputs
-    if (!credentials.url || !credentials.username || !credentials.password) {
-      setError('Please fill in all credential fields');
+    if (!credentials.url || !credentials.password) {
+      setError('URL and Password/API Key are required. Username can be left blank if using an API Key.');
       return;
     }
     
@@ -111,10 +111,9 @@ function ConnectionForm({
             value={credentials.username}
             onChange={handleInputChange}
             variant="outlined"
-            placeholder="Username"
+            placeholder="Username (optional if using API Key)"
             size="small"
             margin="dense"
-            required
           />
           
           <TextField

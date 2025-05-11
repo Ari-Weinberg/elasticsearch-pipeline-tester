@@ -13,14 +13,15 @@ CORS(app)  # Enable CORS for all routes
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 # Elasticsearch credential validation
-def validate_credentials(url: str, username: str, password: str) -> Tuple[bool, str, Elasticsearch]:
+def validate_credentials(url: str, username: Union[str, None], auth_secret: str) -> Tuple[bool, str, Elasticsearch]:
     """
     Validate Elasticsearch credentials by making a test API call.
+    Supports basic authentication (username/password) or API key authentication.
     
     Args:
         url: Elasticsearch cluster URL
-        username: Elasticsearch username
-        password: Elasticsearch password or API key
+        username: Elasticsearch username. If None or empty, API key authentication is attempted.
+        auth_secret: Elasticsearch password (if username is provided) or API key.
         
     Returns:
         Tuple containing:
@@ -29,24 +30,35 @@ def validate_credentials(url: str, username: str, password: str) -> Tuple[bool, 
             - Elasticsearch client object if successful, None if failed
     """
     try:
-        # Create Elasticsearch client
-        es = Elasticsearch(
-            url,
-            basic_auth=(username, password),
-            verify_certs=False,  # For development; should be configurable in production
-            request_timeout=30
-        )
+        effective_username = username if username and username.strip() else None
+        
+        if effective_username:  # Basic authentication
+            es = Elasticsearch(
+                url,
+                basic_auth=(effective_username, auth_secret),
+                verify_certs=False,  # For development; should be configurable in production
+                request_timeout=30
+            )
+            auth_method_message = "basic authentication"
+        else:  # API key authentication
+            es = Elasticsearch(
+                url,
+                api_key=auth_secret,
+                verify_certs=False,  # For development; should be configurable in production
+                request_timeout=30
+            )
+            auth_method_message = "API key authentication"
         
         # Test connection with cluster health API
         health = es.cluster.health()
         
         # If we get here, credentials are valid
-        return True, f"Connected to cluster: {health.get('cluster_name')}", es
+        return True, f"Connected to cluster: {health.get('cluster_name')} using {auth_method_message}", es
     except Exception as e:
         # Handle authentication or connection errors
         error_msg = str(e)
         if "unauthorized" in error_msg.lower() or "authentication" in error_msg.lower():
-            return False, "Invalid credentials. Please check your username and password.", None
+            return False, "Invalid credentials or API key. Please check your input.", None
         else:
             return False, f"Connection error: {error_msg}", None
 
@@ -159,16 +171,18 @@ def test_credentials():
     try:
         data = request.json
         url = data.get('url')
-        username = data.get('username')
-        password = data.get('password')
+        username = data.get('username')  # Can be None, empty, or provided
+        auth_secret = data.get('password') # Corresponds to 'Password/API Key' field
         
-        if not url or not username or not password:
+        if not url or not auth_secret:
             return jsonify({
                 'success': False,
-                'message': 'Missing required credential fields'
+                'message': 'URL and Password/API Key are required.'
             }), 400
         
-        valid, message, _ = validate_credentials(url, username, password)
+        effective_username = username if username and username.strip() else None
+        
+        valid, message, _ = validate_credentials(url, effective_username, auth_secret)
         
         return jsonify({
             'success': valid,
@@ -187,17 +201,18 @@ def get_pipelines():
         data = request.json
         url = data.get('url')
         username = data.get('username')
-        password = data.get('password')
+        auth_secret = data.get('password')
         
-        if not url or not username or not password:
+        if not url or not auth_secret:
             return jsonify({
                 'success': False,
-                'message': 'Missing required credential fields'
+                'message': 'URL and Password/API Key are required.'
             }), 400
         
-        valid, message, es_client = validate_credentials(url, username, password)
+        effective_username = username if username and username.strip() else None
+        valid, message, es_client = validate_credentials(url, effective_username, auth_secret)
         
-        if not valid:
+        if not valid or es_client is None:
             return jsonify({
                 'success': False,
                 'message': message
@@ -223,15 +238,15 @@ def simulate():
         data = request.json
         url = data.get('url')
         username = data.get('username')
-        password = data.get('password')
+        auth_secret = data.get('password')
         pipeline_id = data.get('pipeline_id')
         logs = data.get('logs', [])
         input_type = data.get('input_type', 'paste')
         
-        if not url or not username or not password:
+        if not url or not auth_secret:
             return jsonify({
                 'success': False,
-                'message': 'Missing required credential fields'
+                'message': 'URL and Password/API Key are required for authentication.'
             }), 400
         
         if not pipeline_id:
@@ -247,9 +262,10 @@ def simulate():
             }), 400
         
         # Validate credentials
-        valid, message, es_client = validate_credentials(url, username, password)
+        effective_username = username if username and username.strip() else None
+        valid, message, es_client = validate_credentials(url, effective_username, auth_secret)
         
-        if not valid:
+        if not valid or es_client is None:
             return jsonify({
                 'success': False,
                 'message': message
