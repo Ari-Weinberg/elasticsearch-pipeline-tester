@@ -6,7 +6,7 @@ sudo docker compose down
 
 # Build the containers (no cache to ensure fresh builds)
 echo "Building containers..."
-sudo docker compose build --no-cache
+sudo docker compose build # --no-cache
 
 # Start the containers in detached mode
 echo "Starting containers in production mode..."

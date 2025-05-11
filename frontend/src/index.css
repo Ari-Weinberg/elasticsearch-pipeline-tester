@@ -25,6 +25,16 @@ code {
   max-height: 500px;
 }
 
+.json-view_custom-look {
+  --json-property: #4ecdc4;
+  --json-index: #ae408b;
+  --json-number: #ae408b;
+  --json-string: #66bb6a;
+  --json-boolean: #0184bc;
+  --json-null: #0184bc;
+  color: #ffffff;
+}
+
 .code-box {
   background-color: #1E1E1E;
   border-radius: 4px;
