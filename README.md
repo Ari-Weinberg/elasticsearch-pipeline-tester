@@ -15,7 +15,7 @@ A modern web application for testing Elasticsearch ingest pipelines by sending l
 - Navigate through results with pagination controls
 - Export transformed results as JSON
 
-![pic6.png]()
+![](https://github.com/Ari-Weinberg/elasticsearch-pipeline-tester/blob/master/pic6.png)
 
 ## Requirements
 
@@ -27,7 +27,7 @@ Build and start the application using Docker:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/elasticsearch-pipeline-tester.git
+git clone https://github.com/Ari-Weinberg/elasticsearch-pipeline-tester.git
 cd elasticsearch-pipeline-tester
 
 # Build and run with Docker Compose
