@@ -13,5 +13,5 @@ echo "Starting containers in production mode..."
 sudo docker compose up -d
 
 echo "Containers started successfully."
-echo "Frontend available at: http://localhost"
-echo "Backend API available at: http://localhost/api"
+echo "Frontend available at: http://localhost:8080"
+

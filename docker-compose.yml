@@ -5,8 +5,8 @@ services:
     build: 
       context: ./backend
     container_name: pipeline-tester-backend
-    ports:
-      - "5000:5000"
+    # ports:
+    #   - "5000:5000"
     environment:
       - PORT=5000
       - FLASK_ENV=production
@@ -20,7 +20,7 @@ services:
       context: ./frontend
     container_name: pipeline-tester-frontend
     ports:
-      - "80:80"
+      - "8080:80"
     environment:
       - NODE_ENV=production
     depends_on:

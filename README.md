@@ -2,6 +2,8 @@
 
 A modern web application for testing Elasticsearch ingest pipelines by sending log data through a selected pipeline and viewing the transformed results.
 
+### Note: This appliction was almost fully vibe coded. Definitely dont expose this to the internet.
+
 ## Features
 
 - Connect to Elasticsearch clusters using credentials
@@ -13,19 +15,7 @@ A modern web application for testing Elasticsearch ingest pipelines by sending l
 - Navigate through results with pagination controls
 - Export transformed results as JSON
 
-## Technical Stack
-
-### Backend
-- Flask: Python web framework for the API
-- Elasticsearch-py: Official client for Elasticsearch interactions
-- Flask-CORS: For cross-origin resource sharing
-- Gunicorn: WSGI HTTP Server for production
-
-### Frontend
-- React: JavaScript library for building the user interface
-- Material UI: Modern component library for the UI
-- React JSON View: JSON viewer with collapsible sections
-- Axios: HTTP client for API requests
+![pic6.png]()
 
 ## Requirements
 
@@ -58,18 +48,7 @@ docker compose up -d
 ```
 
 Access the application at:
-- Frontend: http://localhost
-- Backend API: http://localhost/api
-
-## Environment Variables
-
-### Backend
-- `PORT`: Web server port (default: 5000)
-- `ELASTICSEARCH_TIMEOUT`: Timeout for Elasticsearch requests (default: 30s)
-- `FLASK_ENV`: Environment mode (development or production)
-
-### Frontend
-- `NODE_ENV`: Environment mode (development or production)
+http://localhost:8080
 
 ## Usage
 
@@ -84,5 +63,6 @@ Access the application at:
 
 ## Limitations
 
-- Files are processed in batches of 20 lines
-- One log entry per line is expected 
+- Files are processed in batches of 20 lines.
+- One log entry per line is expected. 
+- Max of 1000 lines, but even that will likely take too long to process.
